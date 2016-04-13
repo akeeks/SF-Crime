@@ -1,0 +1,67 @@
+---
+title: "SF Crime"
+author: "Amy Ke"
+date: "April 9, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(ggmap)
+library(dplyr)
+library(readr)
+library(lubridate)
+
+crime <- read.csv("C:/Users/Amy/Desktop/R/SF Crime/train.csv", stringsAsFactors=FALSE)
+names(crime) <- tolower(names(crime))
+```
+
+The following is a function that takes category of crime inputs and displays resulting heat map of crime densities.
+```{r}
+#Function inputs: dataset, category of crime
+heatmap <- function(data, cat){
+  #extract data
+  dat <- data %>%
+    filter(category %in% c(cat))
+  
+  #generate sf map
+  map<-get_map(location="sanfrancisco",zoom=12,source="osm", color="bw")
+  
+  #generate contours
+  contours <- stat_density2d(data=dat, aes(x=x, y=y, fill=..level.., alpha=..level..), n=200, geom="polygon")
+  
+  #generate maps by category
+  if(length(cat > 1)){
+    ggmap(map) + contours + scale_alpha_continuous(range=c(0.25,0.4), guide='none') +   scale_fill_gradient(low="blue", high="red") + facet_wrap(~category)
+  }
+  #generate singular map
+  else
+    ggmap(map) + contours + scale_alpha_continuous(range=c(0.25,0.4), guide='none') + scale_fill_gradient(low="blue", high="red") + ggtitle(cat)
+}
+```
+
+
+According to the FBI's Crime Reporting System, violent crimes are defined as offenses that involve force or the threat of force. Here, these are comprised of Assault, Sex Offenses Forcible, and Robbery.
+```{r}
+vc <- crime %>%
+  filter(category %in% c("ASSAULT", "ROBBERY", "SEX OFFENSES FORCIBLE"))
+
+#Group crimes by district
+violent <- vc %>%
+  group_by(pddistrict) %>%
+  summarize(freq=n())
+  
+arrange(violent, desc(freq))
+violentcrimes <- heatmap(crime, c("ASSAULT", "ROBBERY", "SEX OFFENSES FORCIBLE"))
+```
+
+While violent crimes tend to be more concetrated in one area centered in the Southern district, lower level crimes are more sparse and distinct to certain locations.
+```{r}
+unique(crime$category)
+heatmap(crime, c("SUICIDE", "PROSTITUTION", "GAMBLING", "DRUNKENNESS"))
+
+```
+
+I therefore move onto predictive modeling of offense category based on the spatial components of crime.
+
+
